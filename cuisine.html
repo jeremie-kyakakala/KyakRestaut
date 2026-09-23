@@ -1,0 +1,158 @@
+ <!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cuisine - Les délices d'Aurée</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{ --red:#E10613; --gold:#FFD166; --black:#0A0A0A; --glass:rgba(255,255,255,0.08); --border:rgba(255,255,255,0.18); }
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--black);color:#fff;font-family:'Poppins',sans-serif;padding:16px;max-width:500px;margin:0 auto}
+.glass{background:var(--glass);backdrop-filter:blur(16px);border:1px solid var(--border);border-radius:18px;box-shadow:0 8px 32px rgba(0,0,0,.5)}
+.header{padding:14px 18px;display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.badge{background:var(--red);padding:6px 12px;border-radius:20px;font-size:11px;font-weight:800}
+.stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px}
+.stat{padding:12px;text-align:center}.stat b{font-size:22px;display:block}.stat span{font-size:10px;opacity:.6}
+.cmd{padding:14px;margin-bottom:12px;border-left:4px solid transparent;transition:.3s}
+.cmd.nouvelle{border-left-color:var(--red);animation:blink 1.5s infinite}
+@keyframes blink{0%,100%{background:rgba(255,255,255,0.08)}50%{background:rgba(225,6,19,0.15)}}
+.cmd.preparation{border-left-color:#f59e0b}.cmd.prete{border-left-color:#22c55e;opacity:.7}
+.btn{padding:9px 14px;border:none;border-radius:10px;font-weight:700;cursor:pointer;margin-right:6px;margin-top:8px;font-size:12px}
+.btn-prep{background:#f59e0b;color:#000}.btn-pret{background:#22c55e;color:#000}.btn-servi{background:#fff;color:#000}.btn-del{background:rgba(255,255,255,.1);color:#fff}
+.top-bar{display:flex;gap:8px;margin-bottom:12px}
+.top-bar button{flex:1}
+</style>
+</head>
+<body>
+
+<div class="glass header">
+  <div><b style="color:var(--red)">Les délices</b> <i style="color:var(--gold);font-family:serif">d'Aurée</i><br><span style="font-size:11px;opacity:.6">INTERFACE CUISINE 🔥</span></div>
+  <div class="badge" id="live">● LIVE</div>
+</div>
+
+<div class="stats">
+  <div class="glass stat"><b id="c-new">0</b><span>NOUVELLES</span></div>
+  <div class="glass stat"><b id="c-prep">0</b><span>EN COURS</span></div>
+  <div class="glass stat"><b id="c-total">0</b><span>TOTAL JOUR</span></div>
+</div>
+
+<div class="top-bar">
+  <button class="glass btn" onclick="activerSon()" style="border:1px solid var(--red)">🔔 Activer Son/Notif</button>
+  <button class="glass btn" onclick="viderHistorique()">🗑️ Vider servies</button>
+</div>
+
+<div id="liste"></div>
+
+<a href="index.html" style="color:#ff7a7a;font-size:12px;display:block;text-align:center;margin-top:20px">← Retour client | <a href="gerant.html" style="color:#ff7a7a;font-size:12px">Gérant</a></a>
+
+<!-- Son de notification -->
+<audio id="ding" src="https://cdn.pixabay.com/audio/2022/03/24/audio_1748c39d6b.mp3" preload="auto"></audio>
+
+<script>
+// --- 1. CONFIGURATION ---
+let lastCount = 0; // Pour détecter nouvelle commande
+let sonActive = false;
+
+// --- 2. DEMANDER LA PERMISSION DE NOTIFICATION NAVIGATEUR ---
+function activerSon(){
+  // Active le son
+  sonActive = true;
+  document.getElementById('ding').play().then(()=>{document.getElementById('ding').pause();}).catch(()=>{});
+  // Demande permission notification système
+  if(Notification && Notification.permission!== "granted"){
+    Notification.requestPermission();
+  }
+  alert("✅ Son + Notifications activés! Laisse cette page ouverte en cuisine.");
+}
+
+// --- 3. FONCTION PRINCIPALE: AFFICHER LES COMMANDES ---
+function render(){
+  let commandes = JSON.parse(localStorage.getItem('commandes')||'[]');
+
+  // Stats
+  document.getElementById('c-new').innerText = commandes.filter(c=>c.statut==="Nouvelle").length;
+  document.getElementById('c-prep').innerText = commandes.filter(c=>c.statut==="En préparation"||c.statut==="Prête").length;
+  document.getElementById('c-total').innerText = commandes.length;
+
+  // Si nouvelle commande arrivée
+  if(commandes.length > lastCount && lastCount!== 0){
+    if(sonActive){
+      document.getElementById('ding').play().catch(()=>{});
+      // Vibration téléphone cuisine
+      if(navigator.vibrate) navigator.vibrate([200,100,200]);
+    }
+    // Notification système même si onglet en arrière-plan
+    if(Notification && Notification.permission === "granted"){
+      let derniere = commandes[0];
+      new Notification(`🔥 Nouvelle commande TABLE ${derniere.table}`, {
+        body: `${derniere.items.map(i=>i.nom).join(', ')} - ${derniere.total} FCFA`,
+        icon: "https://cdn-icons-png.flaticon.com/512/3480/3480451.png"
+      });
+    }
+  }
+  lastCount = commandes.length;
+
+  // Affichage
+  if(commandes.length===0){
+    document.getElementById('liste').innerHTML = "<p class='glass' style='padding:30px;text-align:center;opacity:.5'>Aucune commande pour le moment<br>En attente...</p>";
+    return;
+  }
+
+  document.getElementById('liste').innerHTML = commandes.map(c=>`
+    <div class="glass cmd ${c.statut==='Nouvelle'?'nouvelle': c.statut==='En préparation'?'preparation':'prete'}">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <b style="font-size:18px">TABLE ${c.table} ${c.statut==='Nouvelle'?'🔥':''}</b>
+        <span style="font-size:11px;opacity:.6">${c.time} • ${c.total} FCFA</span>
+      </div>
+
+      <div style="margin:10px 0;font-size:13px;line-height:1.6">
+        ${c.items.map(i=>`• <b>${i.qte}x</b> ${i.nom}`).join('<br>')}
+      </div>
+
+      <div style="display:flex;gap:6px;align-items:center">
+        <span style="font-size:10px;padding:4px 10px;border-radius:20px;background:${c.statut==='Nouvelle'? 'var(--red)' : c.statut==='En préparation'? '#f59e0b' : '#22c55e'};color:${c.statut==='En préparation'?'#000':'#fff'};font-weight:700">${c.statut.toUpperCase()}</span>
+        ${c.statut==='Nouvelle'?'<span style="font-size:10px;opacity:.6">⚠️ À préparer</span>':''}
+      </div>
+
+      <!-- BOUTONS D'ACTION CUISINE -->
+      <div style="margin-top:12px">
+        ${c.statut==='Nouvelle'? `<button class="btn btn-prep" onclick="updateStatus(${c.id},'En préparation')">👨‍🍳 En préparation</button>` : ''}
+        ${c.statut!=='Prête' && c.statut!=='Servie'? `<button class="btn btn-pret" onclick="updateStatus(${c.id},'Prête')">✅ Prête à servir</button>` : ''}
+        ${c.statut==='Prête'? `<button class="btn btn-servi" onclick="updateStatus(${c.id},'Servie')">🍽️ Client Servi - Valider</button>` : ''}
+        ${c.statut==='Servie'? `<span style="font-size:12px;color:#22c55e">✔️ Servie - Archivée</span>` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+// --- 4. CHANGER LE STATUT ---
+function updateStatus(id, nouveauStatut){
+  let commandes = JSON.parse(localStorage.getItem('commandes')||'[]');
+  let cmd = commandes.find(c=>c.id===id);
+  if(cmd){
+    cmd.statut = nouveauStatut;
+    // Si servie, on ajoute l'heure de service
+    if(nouveauStatut==='Servie') cmd.heureService = new Date().toLocaleTimeString();
+    localStorage.setItem('commandes', JSON.stringify(commandes));
+    render();
+  }
+}
+
+// --- 5. VIDER LES COMMANDES SERVIES (FIN DE SERVICE) ---
+function viderHistorique(){
+  if(!confirm("Supprimer toutes les commandes SERVIES?")) return;
+  let commandes = JSON.parse(localStorage.getItem('commandes')||'[]');
+  commandes = commandes.filter(c=>c.statut!=='Servie'); // Garde seulement non servies
+  localStorage.setItem('commandes', JSON.stringify(commandes));
+  render();
+}
+
+// --- 6. ACTUALISATION AUTO TOUTES LES 2 SECONDES ---
+// Et écoute si une autre page ajoute une commande (même navigateur)
+window.addEventListener('storage', render);
+setInterval(render, 2000);
+render();
+</script>
+</body>
+</html>

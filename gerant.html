@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gérant - Publier Plat</title>
+<style>body{background:#0a0a0a;color:#fff;font-family:sans-serif;padding:20px;max-width:430px;margin:auto} .glass{background:rgba(255,255,255,.08);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.18);border-radius:16px;padding:16px;margin-bottom:14px} input,select{width:100%;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#fff;margin:6px 0} button{background:#E10613;color:#fff;border:none;padding:12px;border-radius:10px;width:100%;font-weight:700;cursor:pointer} .plat{display:flex;gap:10px;align-items:center;font-size:13px;margin:6px 0} .plat img{width:50px;height:50px;border-radius:8px;object-fit:cover}</style>
+</head><body>
+<h2>👨‍💼 Gérant - Plats du Jour</h2>
+<p style="opacity:.6;font-size:12px">Publie chaque matin. Suppression auto après 24h.</p>
+
+<div class="glass">
+  <input id="nom" placeholder="Nom du plat ex: Poisson Braisé">
+  <input id="prix" type="number" placeholder="Prix FCFA ex: 3500">
+  <select id="cat"><option>GRILLADES</option>
+                    <option>PLATS</option>
+                    <option>ENTRÉES</option>
+                    <option>BOISSONS</option>
+  </select>
+   
+    <style>select{
+        font: optional;
+        color: #000;
+  }</style>
+  <input id="photo" placeholder="Lien photo ou laisse vide (photo par défaut)">
+  <button onclick="publier()">Publier pour 24h ✅</button>
+</div>
+
+<h3 style="margin:10px 0">En vente aujourd'hui:</h3>
+<div id="liste"></div>
+<a href="index.html" style="color:#ff7a7a">→ Voir page client</a>
+
+<script>
+function publier(){
+  // 1. On récupère les valeurs
+  const nom=document.getElementById('nom').value;
+  const prix=parseInt(document.getElementById('prix').value);
+  if(!nom||!prix){alert("Nom et prix obligatoires");return}
+  // 2. On crée l'objet plat avec date de création
+  const nouveau={
+    id: Date.now().toString(),
+    nom, prix,
+    categorie: document.getElementById('cat').value,
+    photo: document.getElementById('photo').value || "https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?w=400",
+    createdAt: Date.now() // Timestamp pour calculer les 24h
+  };
+  let plats=JSON.parse(localStorage.getItem('plats_du_jour')||'[]');
+  plats.unshift(nouveau);
+  localStorage.setItem('plats_du_jour', JSON.stringify(plats));
+  alert("Publié ! Visible 24h");
+  document.getElementById('nom').value=""; document.getElementById('prix').value="";
+  afficher();
+}
+function afficher(){
+  let plats=JSON.parse(localStorage.getItem('plats_du_jour')||'[]');
+  const limite=Date.now()-(24*60*60*1000);
+  plats=plats.filter(p=>p.createdAt>limite); // Nettoyage auto
+  localStorage.setItem('plats_du_jour', JSON.stringify(plats));
+  document.getElementById('liste').innerHTML=plats.map(p=>`
+    <div class="glass plat"><img src="${p.photo}"><div><b>${p.nom}</b><br>${p.prix}F - reste ${Math.round((24 - (Date.now()-p.createdAt)/3600000))}h <br><span onclick="supprimer('${p.id}')" style="color:#ff7a7a;cursor:pointer">Supprimer</span></div></div>`).join('')||"<p style='opacity:.5'>Aucun plat</p>";
+}
+function supprimer(id){let plats=JSON.parse(localStorage.getItem('plats_du_jour')||'[]').filter(p=>p.id!=id); localStorage.setItem('plats_du_jour',JSON.stringify(plats)); afficher();}
+afficher();
+</script>
+</body></html>
